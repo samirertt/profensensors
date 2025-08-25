@@ -1,24 +1,16 @@
-#Connections
-#MPU6050 - Raspberry pi
-#VCC - 5V  (2 or 4 Board)
-#GND - GND (6 - Board)
-#SCL - SCL (5 - Board)
-#SDA - SDA (3 - Board)
-
-
 from utils.kalman import KalmanAngle
-import smbus2			#import SMBus module of I2C
-import time
-import math
+import smbus2
+import time, math
 
-kalmanX = KalmanAngle()
-kalmanY = KalmanAngle()
-
-RestrictPitch = True	#Comment out to restrict roll to ±90deg instead - please read: http://www.freescale.com/files/sensors/doc/app_note/AN3461.pdf
+# ---------------- Kalman setup ----------------
+RestrictPitch = True
 radToDeg = 57.2957786
-kalAngleX = 0
-kalAngleY = 0
-#some MPU6050 Registers and their Address
+
+# Each MPU has its own filter instances
+kalmanX1, kalmanY1 = KalmanAngle(), KalmanAngle()
+kalmanX2, kalmanY2 = KalmanAngle(), KalmanAngle()
+
+# ---------------- MPU6050 registers ----------------
 PWR_MGMT_1   = 0x6B
 SMPLRT_DIV   = 0x19
 CONFIG       = 0x1A
@@ -31,141 +23,107 @@ GYRO_XOUT_H  = 0x43
 GYRO_YOUT_H  = 0x45
 GYRO_ZOUT_H  = 0x47
 
+# ---------------- I2C addresses ----------------
+DEVICE_TCA9548A = 0x70    # TCA multiplexer
+MPU_ADDR        = 0x68    # MPU6050 default address
 
-#Read the gyro and acceleromater values from MPU6050
+bus = smbus2.SMBus(1)
+
+# ---------------- Multiplexer control ----------------
+def tca_select(channel: int):
+    if not 0 <= channel <= 7:
+        raise ValueError("TCA channel must be 0–7")
+    bus.write_byte(DEVICE_TCA9548A, 1 << channel)
+    time.sleep(0.01)
+
+# ---------------- MPU6050 routines ----------------
 def MPU_Init():
-	#write to sample rate register
-	bus.write_byte_data(DeviceAddress, SMPLRT_DIV, 7)
-
-	#Write to power management register
-	bus.write_byte_data(DeviceAddress, PWR_MGMT_1, 1)
-
-	#Write to Configuration register
-	#Setting DLPF (last three bit of 0X1A to 6 i.e '110' It removes the noise due to vibration.) https://ulrichbuschbaum.wordpress.com/2015/01/18/using-the-mpu6050s-dlpf/
-	bus.write_byte_data(DeviceAddress, CONFIG, int('0000110',2))
-
-	#Write to Gyro configuration register
-	bus.write_byte_data(DeviceAddress, GYRO_CONFIG, 24)
-
-	#Write to interrupt enable register
-	bus.write_byte_data(DeviceAddress, INT_ENABLE, 1)
-
+    bus.write_byte_data(MPU_ADDR, SMPLRT_DIV, 7)
+    bus.write_byte_data(MPU_ADDR, PWR_MGMT_1, 1)
+    bus.write_byte_data(MPU_ADDR, CONFIG, 0x06)     # DLPF
+    bus.write_byte_data(MPU_ADDR, GYRO_CONFIG, 24)  # ±2000 °/s
+    bus.write_byte_data(MPU_ADDR, INT_ENABLE, 1)
 
 def read_raw_data(addr):
-	#Accelero and Gyro value are 16-bit
-        high = bus.read_byte_data(DeviceAddress, addr)
-        low = bus.read_byte_data(DeviceAddress, addr+1)
+    high = bus.read_byte_data(MPU_ADDR, addr)
+    low  = bus.read_byte_data(MPU_ADDR, addr+1)
+    value = (high << 8) | low
+    if value > 32767:   # signed 16-bit
+        value -= 65536
+    return value
 
-        #concatenate higher and lower value
-        value = ((high << 8) | low)
+# ---------------- Initialization ----------------
+def init_mpu(channel, kalmanX, kalmanY):
+    tca_select(channel)
+    MPU_Init()
+    time.sleep(0.5)
 
-        #to get signed value from mpu6050
-        if(value > 32768):
-                value = value - 65536
-        return value
+    accX = read_raw_data(ACCEL_XOUT_H)
+    accY = read_raw_data(ACCEL_YOUT_H)
+    accZ = read_raw_data(ACCEL_ZOUT_H)
 
+    if RestrictPitch:
+        roll  = math.atan2(accY, accZ) * radToDeg
+        pitch = math.atan(-accX / math.sqrt((accY**2)+(accZ**2))) * radToDeg
+    else:
+        roll  = math.atan(accY / math.sqrt((accX**2)+(accZ**2))) * radToDeg
+        pitch = math.atan2(-accX, accZ) * radToDeg
 
-bus = smbus2.SMBus(1) 	# or bus = smbus.SMBus(0) for older version boards
-DeviceAddress = 0x68   # MPU6050 device address
+    kalmanX.setAngle(roll)
+    kalmanY.setAngle(pitch)
 
-MPU_Init()
+    return roll, pitch
 
-time.sleep(1)
-#Read Accelerometer raw value
-accX = read_raw_data(ACCEL_XOUT_H)
-accY = read_raw_data(ACCEL_YOUT_H)
-accZ = read_raw_data(ACCEL_ZOUT_H)
+# Init both MPUs
+roll1, pitch1 = init_mpu(3, kalmanX1, kalmanY1)
+roll2, pitch2 = init_mpu(4, kalmanX2, kalmanY2)
 
-#print(accX,accY,accZ)
-#print(math.sqrt((accY**2)+(accZ**2)))
-if (RestrictPitch):
-    roll = math.atan2(accY,accZ) * radToDeg
-    pitch = math.atan(-accX/math.sqrt((accY**2)+(accZ**2))) * radToDeg
-else:
-    roll = math.atan(accY/math.sqrt((accX**2)+(accZ**2))) * radToDeg
-    pitch = math.atan2(-accX,accZ) * radToDeg
-print(roll)
-kalmanX.setAngle(roll)
-kalmanY.setAngle(pitch)
-gyroXAngle = roll
-gyroYAngle = pitch
-compAngleX = roll
-compAngleY = pitch
+print("MPU1 init roll:", roll1)
+print("MPU2 init roll:", roll2)
 
 timer = time.time()
-flag = 0
+
+# ---------------- Main loop ----------------
 while True:
-    if(flag >100): #Problem with the connection
-        print("There is a problem with the connection")
-        flag=0
-        continue
-    try:
-        #Read Accelerometer raw value
-        accX = read_raw_data(ACCEL_XOUT_H)
-        accY = read_raw_data(ACCEL_YOUT_H)
-        accZ = read_raw_data(ACCEL_ZOUT_H)
+    dt = time.time() - timer
+    timer = time.time()
 
-        #Read Gyroscope raw value
-        gyroX = read_raw_data(GYRO_XOUT_H)
-        gyroY = read_raw_data(GYRO_YOUT_H)
-        gyroZ = read_raw_data(GYRO_ZOUT_H)
+    # --- MPU1 (channel 3) ---
+    tca_select(3)
+    accX = read_raw_data(ACCEL_XOUT_H)
+    accY = read_raw_data(ACCEL_YOUT_H)
+    accZ = read_raw_data(ACCEL_ZOUT_H)
+    gyroX = read_raw_data(GYRO_XOUT_H)
+    gyroY = read_raw_data(GYRO_YOUT_H)
 
-        dt = time.time() - timer
-        timer = time.time()
+    if RestrictPitch:
+        roll1  = math.atan2(accY, accZ) * radToDeg
+        pitch1 = math.atan(-accX / math.sqrt((accY**2)+(accZ**2))) * radToDeg
+    else:
+        roll1  = math.atan(accY / math.sqrt((accX**2)+(accZ**2))) * radToDeg
+        pitch1 = math.atan2(-accX, accZ) * radToDeg
 
-        if (RestrictPitch):
-            roll = math.atan2(accY,accZ) * radToDeg
-            pitch = math.atan(-accX/math.sqrt((accY**2)+(accZ**2))) * radToDeg
-        else:
-            roll = math.atan(accY/math.sqrt((accX**2)+(accZ**2))) * radToDeg
-            pitch = math.atan2(-accX,accZ) * radToDeg
+    kalAngleX1 = kalmanX1.getAngle(roll1, gyroX/131.0, dt)
+    kalAngleY1 = kalmanY1.getAngle(pitch1, gyroY/131.0, dt)
 
-        gyroXRate = gyroX/131
-        gyroYRate = gyroY/131
+    # --- MPU2 (channel 4) ---
+    tca_select(4)
+    accX = read_raw_data(ACCEL_XOUT_H)
+    accY = read_raw_data(ACCEL_YOUT_H)
+    accZ = read_raw_data(ACCEL_ZOUT_H)
+    gyroX = read_raw_data(GYRO_XOUT_H)
+    gyroY = read_raw_data(GYRO_YOUT_H)
 
-        if (RestrictPitch):
+    if RestrictPitch:
+        roll2  = math.atan2(accY, accZ) * radToDeg
+        pitch2 = math.atan(-accX / math.sqrt((accY**2)+(accZ**2))) * radToDeg
+    else:
+        roll2  = math.atan(accY / math.sqrt((accX**2)+(accZ**2))) * radToDeg
+        pitch2 = math.atan2(-accX, accZ) * radToDeg
 
-            if((roll < -90 and kalAngleX >90) or (roll > 90 and kalAngleX < -90)):
-                kalmanX.setAngle(roll)
-                complAngleX = roll
-                kalAngleX   = roll
-                gyroXAngle  = roll
-            else:
-                kalAngleX = kalmanX.getAngle(roll,gyroXRate,dt)
+    kalAngleX2 = kalmanX2.getAngle(roll2, gyroX/131.0, dt)
+    kalAngleY2 = kalmanY2.getAngle(pitch2, gyroY/131.0, dt)
 
-            if(abs(kalAngleX)>90):
-                gyroYRate  = -gyroYRate
-                kalAngleY  = kalmanY.getAngle(pitch,gyroYRate,dt)
-        else:
-
-            if((pitch < -90 and kalAngleY >90) or (pitch > 90 and kalAngleY < -90)):
-                kalmanY.setAngle(pitch)
-                complAngleY = pitch
-                kalAngleY   = pitch
-                gyroYAngle  = pitch
-            else:
-                kalAngleY = kalmanY.getAngle(pitch,gyroYRate,dt)
-
-            if(abs(kalAngleY)>90):
-                gyroXRate  = -gyroXRate
-                kalAngleX = kalmanX.getAngle(roll,gyroXRate,dt)
-
-        #angle = (rate of change of angle) * change in time
-        gyroXAngle = gyroXRate * dt
-        gyroYAngle = gyroYAngle * dt
-
-        #compAngle = constant * (old_compAngle + angle_obtained_from_gyro) + constant * angle_obtained from accelerometer
-        compAngleX = 0.93 * (compAngleX + gyroXRate * dt) + 0.07 * roll
-        compAngleY = 0.93 * (compAngleY + gyroYRate * dt) + 0.07 * pitch
-
-        if ((gyroXAngle < -180) or (gyroXAngle > 180)):
-            gyroXAngle = kalAngleX
-        if ((gyroYAngle < -180) or (gyroYAngle > 180)):
-            gyroYAngle = kalAngleY
-
-        print("Angle X: " + str(kalAngleX)+"   " +"Angle Y: " + str(kalAngleY))
-        #print(str(roll)+"  "+str(gyroXAngle)+"  "+str(compAngleX)+"  "+str(kalAngleX)+"  "+str(pitch)+"  "+str(gyroYAngle)+"  "+str(compAngleY)+"  "+str(kalAngleY))
-        time.sleep(0.005)
-
-    except Exception as exc:
-        flag += 1
+    # Print both
+    print(f"MPU1 [Ch3] -> X:{kalAngleX1:.2f}°  Y:{kalAngleY1:.2f}°   |   MPU2 [Ch4] -> X:{kalAngleX2:.2f}°  Y:{kalAngleY2:.2f}°")
+    time.sleep(0.01)
