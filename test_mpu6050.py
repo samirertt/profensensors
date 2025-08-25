@@ -75,8 +75,8 @@ def init_mpu(channel, kalmanX, kalmanY):
     return roll, pitch
 
 # Init both MPUs
-roll1, pitch1 = init_mpu(3, kalmanX1, kalmanY1)
-roll2, pitch2 = init_mpu(4, kalmanX2, kalmanY2)
+roll1, pitch1 = init_mpu(2, kalmanX1, kalmanY1)
+roll2, pitch2 = init_mpu(3, kalmanX2, kalmanY2)
 
 print("MPU1 init roll:", roll1)
 print("MPU2 init roll:", roll2)
@@ -89,7 +89,7 @@ while True:
     timer = time.time()
 
     # --- MPU1 (channel 3) ---
-    tca_select(3)
+    tca_select(2)
     accX = read_raw_data(ACCEL_XOUT_H)
     accY = read_raw_data(ACCEL_YOUT_H)
     accZ = read_raw_data(ACCEL_ZOUT_H)
@@ -107,7 +107,7 @@ while True:
     kalAngleY1 = kalmanY1.getAngle(pitch1, gyroY/131.0, dt)
 
     # --- MPU2 (channel 4) ---
-    tca_select(4)
+    tca_select(3)
     accX = read_raw_data(ACCEL_XOUT_H)
     accY = read_raw_data(ACCEL_YOUT_H)
     accZ = read_raw_data(ACCEL_ZOUT_H)

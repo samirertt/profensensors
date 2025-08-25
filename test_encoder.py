@@ -1,10 +1,10 @@
-import smbus, time, math
+import smbus2, time, math
 
 # I2C addresses
 DEVICE_TCA9548A = 0x70   # TCA9548A multiplexer default address
 DEVICE_AS5600   = 0x36   # AS5600 encoder default address
 
-bus = smbus.SMBus(1)
+bus = smbus2.SMBus(1)
 
 # Function to select a TCA channel
 def tca_select(channel):
