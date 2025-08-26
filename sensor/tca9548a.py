@@ -1,4 +1,3 @@
-# sensors/tca9548a.py
 import smbus2
 
 class TCA9548A:

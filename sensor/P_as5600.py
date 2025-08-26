@@ -22,11 +22,14 @@ class AS5600(Sensor):
         return (read_bytes[0] << 8) | read_bytes[1]
 
     def read(self):
-        angle = self.read_raw_angle()
-        magnitude = self.read_magnitude()
-        return {
-            "angle": angle,
-            "magnitude": magnitude,
-            "deg": angle * 360 / 4096
-        }
-
+        try:
+            angle = self.read_raw_angle()
+            magnitude = self.read_magnitude()
+            return {
+                "ok": True,
+                "angle": angle,
+                "magnitude": magnitude,
+                "deg": angle * 360 / 4096
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}

@@ -5,6 +5,7 @@ class SensorManager:
 
     def register(self, sensor):
         self.sensors.append(sensor)
+        print(f"Registered sensor: {sensor.name}")
 
     def update_all(self):
         data = {}
@@ -12,5 +13,5 @@ class SensorManager:
             try:
                 data[sensor.name] = sensor.read()
             except Exception as e:
-                data[sensor.name] = {"error": str(e)}
+                data[sensor.name] = {"ok": False, "error": str(e)}
         return data
