@@ -9,7 +9,7 @@ from sensor.P_mpu6050 import MPU6050
 from sensor.P_ds18b20 import DS18B20
 from manager import SensorManager
 import adafruit_onewire.bus
-import glob
+
 
 # --- I2C setup ---
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -24,23 +24,26 @@ manager = SensorManager(mux)
 
 # --- Instantiate sensors ---
 # AS5600s
-as1 = AS5600(mux[0], channel=0, name="AS5600_1")
-as2 = AS5600(mux[1], channel=1, name="AS5600_2")
+as1 = AS5600(mux[0], name="AS5600_1")
+as2 = AS5600(mux[1], name="AS5600_2")
 manager.register(as1)
 manager.register(as2)
 
 # Two MPU6050 sensors on different mux channels
-mpu1 = MPU6050(mux[0], name="MPU6050_1")
-mpu2 = MPU6050(mux[1], name="MPU6050_2")
+mpu1 = MPU6050(mux[2], name="MPU6050_1")
+mpu2 = MPU6050(mux[3], name="MPU6050_2")
 
 manager.register(mpu1)
 manager.register(mpu2)
 
-# DS18B20 sensors (supports multiple by index)
-ds1 = DS18B20(name="DS18B20_1", device_index=0)
-ds2 = DS18B20(name="DS18B20_2", device_index=1)
-manager.register(ds1)
-manager.register(ds2)
+# DS18B20 sensors - pass the OneWire devices directly
+ds1 = DS18B20(devices[0], name="DS18B20_1") if len(devices) > 0 else None
+ds2 = DS18B20(devices[1], name="DS18B20_2") if len(devices) > 1 else None
+
+if ds1:
+    manager.register(ds1)
+if ds2:
+    manager.register(ds2)
 
 while True:
     all_data = manager.update_all()

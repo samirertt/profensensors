@@ -1,6 +1,5 @@
 # sensors/mpu6050_kalman.py
 from .base import Sensor
-import smbus
 import time
 import math
 from utils.kalman import KalmanAngle
@@ -24,13 +23,15 @@ class MPU6050(Sensor):
         self.address = address
         self.restrict_pitch = restrict_pitch
 
+        # Kalman filters
         self.kalmanX = KalmanAngle()
         self.kalmanY = KalmanAngle()
         self.rad_to_deg = 57.2957786
 
+        # Initialize the device
         self._init_mpu()
 
-        # Initial orientation
+        # Seed Kalman with initial roll/pitch
         accX, accY, accZ = self._read_accel()
         if self.restrict_pitch:
             roll  = math.atan2(accY, accZ) * self.rad_to_deg
@@ -47,41 +48,42 @@ class MPU6050(Sensor):
         self.timer = time.time()
 
     def _init_mpu(self):
-        # Initialize MPU registers
         self.bus.write_byte_data(self.address, self.SMPLRT_DIV, 7)
         self.bus.write_byte_data(self.address, self.PWR_MGMT_1, 1)
-        self.bus.write_byte_data(self.address, self.CONFIG, int('0000110',2)) # DLPF
-        self.bus.write_byte_data(self.address, self.GYRO_CONFIG, 24)
+        self.bus.write_byte_data(self.address, self.CONFIG, 0x06)  # DLPF 5Hz
+        self.bus.write_byte_data(self.address, self.GYRO_CONFIG, 24) # ±2000°/s
         self.bus.write_byte_data(self.address, self.INT_ENABLE, 1)
 
     def _read_raw_data(self, addr):
         high = self.bus.read_byte_data(self.address, addr)
-        low = self.bus.read_byte_data(self.address, addr+1)
+        low  = self.bus.read_byte_data(self.address, addr+1)
         value = (high << 8) | low
-        if value > 32768:  # convert to signed
+        if value > 32767:
             value -= 65536
         return value
 
     def _read_accel(self):
-        accX = self._read_raw_data(self.ACCEL_XOUT_H)
-        accY = self._read_raw_data(self.ACCEL_YOUT_H)
-        accZ = self._read_raw_data(self.ACCEL_ZOUT_H)
-        return accX, accY, accZ
+        return (
+            self._read_raw_data(self.ACCEL_XOUT_H),
+            self._read_raw_data(self.ACCEL_YOUT_H),
+            self._read_raw_data(self.ACCEL_ZOUT_H),
+        )
 
     def _read_gyro(self):
-        gyroX = self._read_raw_data(self.GYRO_XOUT_H)
-        gyroY = self._read_raw_data(self.GYRO_YOUT_H)
-        gyroZ = self._read_raw_data(self.GYRO_ZOUT_H)
-        return gyroX, gyroY, gyroZ
+        return (
+            self._read_raw_data(self.GYRO_XOUT_H),
+            self._read_raw_data(self.GYRO_YOUT_H),
+            self._read_raw_data(self.GYRO_ZOUT_H),
+        )
 
     def read(self):
         accX, accY, accZ = self._read_accel()
-        gyroX, gyroY, _ = self._read_gyro()
+        gyroX, gyroY, gyroZ = self._read_gyro()
 
         dt = time.time() - self.timer
         self.timer = time.time()
 
-        # Compute roll, pitch
+        # Compute roll & pitch from accel
         if self.restrict_pitch:
             roll  = math.atan2(accY, accZ) * self.rad_to_deg
             pitch = math.atan(-accX / math.sqrt((accY**2) + (accZ**2))) * self.rad_to_deg
@@ -115,6 +117,9 @@ class MPU6050(Sensor):
             self.kalAngleX = self.kalmanX.getAngle(roll, gyroXRate, dt)
 
         return {
+            "ok": True,
+            "ax": accX, "ay": accY, "az": accZ,
+            "gx": gyroX, "gy": gyroY, "gz": gyroZ,
             "roll": self.kalAngleX,
             "pitch": self.kalAngleY
         }

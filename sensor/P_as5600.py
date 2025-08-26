@@ -2,8 +2,8 @@
 from .base import Sensor
 
 class AS5600(Sensor):
-    def __init__(self, bus, address=0x36, name="AS5600", channel=None):
-        super().__init__(name, channel)
+    def __init__(self, bus, address=0x36, name="AS5600"):
+        super().__init__(name)
         self.bus = bus  # pass tca[0] or any I2C bus object
         self.address = address
 
