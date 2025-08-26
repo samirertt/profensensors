@@ -48,16 +48,19 @@ class MPU6050(Sensor):
         self.timer = time.time()
 
     def _init_mpu(self):
-        self.bus.write_byte_data(self.address, self.SMPLRT_DIV, 7)
-        self.bus.write_byte_data(self.address, self.PWR_MGMT_1, 1)
-        self.bus.write_byte_data(self.address, self.CONFIG, 0x06)  # DLPF 5Hz
-        self.bus.write_byte_data(self.address, self.GYRO_CONFIG, 24) # ±2000°/s
-        self.bus.write_byte_data(self.address, self.INT_ENABLE, 1)
+        # CircuitPython I2C write
+        self.bus.writeto(self.address, bytes([self.SMPLRT_DIV, 7]))
+        self.bus.writeto(self.address, bytes([self.PWR_MGMT_1, 1]))
+        self.bus.writeto(self.address, bytes([self.CONFIG, 0x06]))
+        self.bus.writeto(self.address, bytes([self.GYRO_CONFIG, 24]))
+        self.bus.writeto(self.address, bytes([self.INT_ENABLE, 1]))
 
     def _read_raw_data(self, addr):
-        high = self.bus.read_byte_data(self.address, addr)
-        low  = self.bus.read_byte_data(self.address, addr+1)
-        value = (high << 8) | low
+        # Write register, then read two bytes
+        self.bus.writeto(self.address, bytes([addr]))
+        data = bytearray(2)
+        self.bus.readfrom_into(self.address, data)
+        value = (data[0] << 8) | data[1]
         if value > 32767:
             value -= 65536
         return value
