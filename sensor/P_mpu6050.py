@@ -17,9 +17,10 @@ class MPU6050(Sensor):
     GYRO_YOUT_H  = 0x45
     GYRO_ZOUT_H  = 0x47
 
-    def __init__(self, bus, address=0x68, name="MPU6050", restrict_pitch=True):
-        super().__init__(name, bus)
+    def __init__(self, bus, mux=None, channel=None, address=0x68, name="MPU6050", restrict_pitch=True):
+        super().__init__(name, channel)
         self.bus = bus
+        self.mux = mux
         self.address = address
         self.restrict_pitch = restrict_pitch
 
@@ -47,19 +48,23 @@ class MPU6050(Sensor):
 
         self.timer = time.time()
 
+    def _select_channel(self):
+        if self.mux and self.channel is not None:
+            self.mux.select_channel(self.channel)
+
     def _init_mpu(self):
-        # CircuitPython I2C write
-        self.bus.writeto(self.address, bytes([self.SMPLRT_DIV, 7]))
-        self.bus.writeto(self.address, bytes([self.PWR_MGMT_1, 1]))
-        self.bus.writeto(self.address, bytes([self.CONFIG, 0x06]))
-        self.bus.writeto(self.address, bytes([self.GYRO_CONFIG, 24]))
-        self.bus.writeto(self.address, bytes([self.INT_ENABLE, 1]))
+        self._select_channel()
+        # smbus2 write
+        self.bus.write_byte_data(self.address, self.SMPLRT_DIV, 7)
+        self.bus.write_byte_data(self.address, self.PWR_MGMT_1, 1)
+        self.bus.write_byte_data(self.address, self.CONFIG, 0x06)
+        self.bus.write_byte_data(self.address, self.GYRO_CONFIG, 24)
+        self.bus.write_byte_data(self.address, self.INT_ENABLE, 1)
 
     def _read_raw_data(self, addr):
-        # Write register, then read two bytes
-        self.bus.writeto(self.address, bytes([addr]))
-        data = bytearray(2)
-        self.bus.readfrom_into(self.address, data)
+        self._select_channel()
+        # Read two bytes from register
+        data = self.bus.read_i2c_block_data(self.address, addr, 2)
         value = (data[0] << 8) | data[1]
         if value > 32767:
             value -= 65536

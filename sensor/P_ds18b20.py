@@ -1,13 +1,14 @@
 import glob
+from .base import Sensor
 
-class DS18B20:
+class DS18B20(Sensor):
     def __init__(self, device_index=0, name="DS18B20"):
+        super().__init__(name)
         base_dir = '/sys/bus/w1/devices/'
         device_folders = glob.glob(base_dir + '28-*')
         if device_index >= len(device_folders):
             raise IndexError(f"No DS18B20 found at index {device_index}")
         self.device_file = device_folders[device_index] + '/w1_slave'
-        self.name = name
 
     def read_temp(self):
         with open(self.device_file, 'r') as f:
@@ -23,5 +24,6 @@ class DS18B20:
             return temp_c
         return None
 
-    def update(self):
-        return {"temperature_C": self.read_temp()}
+    def read(self):
+        temp = self.read_temp()
+        return {"temperature_C": temp}
