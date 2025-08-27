@@ -2,7 +2,7 @@
 from .base import Sensor
 import time
 import math
-from utils.kalman import KalmanAngle
+from profensensors.utils.kalman import KalmanAngle
 
 class MPU6050(Sensor):
     PWR_MGMT_1   = 0x6B

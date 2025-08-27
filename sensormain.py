@@ -3,11 +3,11 @@ import time
 import threading
 import smbus2
 import json
-from sensor.tca9548a import TCA9548A
-from sensor.P_as5600 import AS5600
-from sensor.P_mpu6050 import MPU6050
-from sensor.P_ds18b20 import DS18B20
-from manager import SensorManager
+from profensensors.sensor.tca9548a import TCA9548A
+from profensensors.sensor.P_as5600 import AS5600
+from profensensors.sensor.P_mpu6050 import MPU6050
+from profensensors.sensor.P_ds18b20 import DS18B20
+from profensensors.manager import SensorManager
 
 class SensorTCPSystem:
     def __init__(self, tcp_server):
