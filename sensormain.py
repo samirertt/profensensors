@@ -96,12 +96,15 @@ class SensorTCPSystem:
                 print(f"Failed to send sensor data: {e}")
     
     def _read_and_send_as5600(self):
-        """Read AS5600 sensors and send data"""
+        """Read AS5600 sensors and send only successful readings"""
         while self.running:
             try:
                 data = self.manager.update_as5600()
                 if data:
-                    self._send_sensor_data("AS5600", data)
+                    # keep only sensors with ok == True
+                    filtered_data = {k: v for k, v in data.items() if v.get("ok", False)}
+                    if filtered_data:
+                        self._send_sensor_data("AS5600", filtered_data)
                 time.sleep(0.1)  # 10Hz
             except Exception as e:
                 print(f"AS5600 error: {e}")
@@ -124,7 +127,6 @@ class SensorTCPSystem:
         while self.running:
             try:
                 data = self.manager.update_ds18b20()
-                print(data)
                 if data:
                     self._send_sensor_data("DS18B20", data)
                 time.sleep(2.0)  # 0.5Hz
