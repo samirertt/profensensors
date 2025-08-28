@@ -124,6 +124,7 @@ class SensorTCPSystem:
         while self.running:
             try:
                 data = self.manager.update_ds18b20()
+                print(data)
                 if data:
                     self._send_sensor_data("DS18B20", data)
                 time.sleep(2.0)  # 0.5Hz
