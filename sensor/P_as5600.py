@@ -33,3 +33,8 @@ class AS5600(Sensor):
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
+        
+    def reset(self):
+        """Zero the sensor at current position"""
+        angle = self.read_raw_angle()
+        self.offset_deg = angle * 360 / 4096

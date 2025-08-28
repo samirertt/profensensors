@@ -13,7 +13,10 @@ class SensorTCPSystem:
     def __init__(self, tcp_server):
         # Reference to the existing TCP server
         self.server = tcp_server
-        
+        self.body_imux = 0.0
+        self.body_imuy = 0.0
+        self.x_encoder = 0.0
+        self.y_encoder = 0.0
         # Initialize sensor system
         self.manager = None
         self.bus = None
@@ -101,14 +104,23 @@ class SensorTCPSystem:
             try:
                 data = self.manager.update_as5600()
                 if data:
-                    # keep only sensors with ok == True
+                    # Keep only sensors with ok == True
                     filtered_data = {k: v for k, v in data.items() if v.get("ok", False)}
                     if filtered_data:
                         self._send_sensor_data("AS5600", filtered_data)
-                time.sleep(0.1)  # 10Hz
+                        
+                        # Update encoder values from first two sensors (or map accordingly)
+                        sensor_keys = list(filtered_data.keys())
+                        if len(sensor_keys) >= 2:
+                            self.x_encoder = filtered_data[sensor_keys[0]].get("deg", 0.0)
+                            self.y_encoder = filtered_data[sensor_keys[1]].get("deg", 0.0)
+                        elif len(sensor_keys) == 1:
+                            self.x_encoder = filtered_data[sensor_keys[0]].get("deg", 0.0)
+                            self.y_encoder = 0.0
+                time.sleep(0.01)  
             except Exception as e:
                 print(f"AS5600 error: {e}")
-                time.sleep(0.2)
+                time.sleep(0.1)
     
     def _read_and_send_mpu6050(self):
         """Read MPU6050 sensors and send data"""
@@ -117,7 +129,12 @@ class SensorTCPSystem:
                 data = self.manager.update_mpu6050()
                 if data:
                     self._send_sensor_data("MPU6050", data)
-                time.sleep(0.1)  # 10Hz
+                    sensor_keys = list(data.keys())
+                    if sensor_keys:
+                        first_sensor = data[sensor_keys[0]]
+                        self.body_imux = first_sensor.get("x", 0.0)  
+                        self.body_imuy = first_sensor.get("y", 0.0)
+                time.sleep(0.1)
             except Exception as e:
                 print(f"MPU6050 error: {e}")
                 time.sleep(0.1)
