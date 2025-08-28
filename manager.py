@@ -17,8 +17,6 @@ class SensorManager:
         """Safe sensor reading with error handling"""
         try:
             data = sensor.read()
-            if sensor.name in ("DS18B20_1", "DS18B20_2"):
-                print(f"{sensor.name}: {data}")
             return sensor.name, data
         except Exception as e:
             return sensor.name, {"ok": False, "error": str(e)}
@@ -50,6 +48,8 @@ class SensorManager:
                     if future.done():
                         try:
                             sensor_name, data = future.result(timeout=0.01)
+                            if sensor.name in ("DS18B20_1", "DS18B20_2"):
+                                print(results)
                             results[sensor_name] = data
                         except:
                             results[sensor.name] = {"ok": False, "error": "Read error"}
