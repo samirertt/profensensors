@@ -48,7 +48,7 @@ class SensorManager:
                     if future.done():
                         try:
                             sensor_name, data = future.result(timeout=0.01)
-                            if sensor.name in ("DS18B20_1", "DS18B20_2"):
+                            if sensor_name in ("DS18B20_1", "DS18B20_2"):
                                 print(results)
                             results[sensor_name] = data
                         except:
