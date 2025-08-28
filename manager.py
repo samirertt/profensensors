@@ -42,14 +42,14 @@ class SensorManager:
                 for future in as_completed(future_to_sensor, timeout=timeout):
                     sensor_name, data = future.result()
                     results[sensor_name] = data
+                    if sensor_name in ("DS18B20_1", "DS18B20_2"):
+                        print(results)
             except TimeoutError:
                 # Get completed results and mark others as failed
                 for future, sensor in future_to_sensor.items():
                     if future.done():
                         try:
                             sensor_name, data = future.result(timeout=0.01)
-                            if sensor_name in ("DS18B20_1", "DS18B20_2"):
-                                print(results)
                             results[sensor_name] = data
                         except:
                             results[sensor.name] = {"ok": False, "error": "Read error"}
