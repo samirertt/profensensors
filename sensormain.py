@@ -39,8 +39,8 @@ class SensorTCPSystem:
 
         # Initialize sensors
         sensors_to_init = [
-            ("AS5600_1", lambda: AS5600(self.bus, mux=self.mux, channel=0, name="AS5600_1")),
-            ("AS5600_2", lambda: AS5600(self.bus, mux=self.mux, channel=1, name="AS5600_2")),
+            ("AS5600_1", lambda: AS5600(self.bus, mux=self.mux, channel=6, name="AS5600_1")),
+            ("AS5600_2", lambda: AS5600(self.bus, mux=self.mux, channel=7, name="AS5600_2")),
             ("MPU6050_1", lambda: MPU6050(self.bus, mux=self.mux, channel=2, name="MPU6050_1")),
             ("MPU6050_2", lambda: MPU6050(self.bus, mux=self.mux, channel=3, name="MPU6050_2")),
             ("DS18B20_1", lambda: DS18B20(device_index=0, name="DS18B20_1")),
