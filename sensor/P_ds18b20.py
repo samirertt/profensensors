@@ -3,7 +3,7 @@ from .base import Sensor
 
 class DS18B20(Sensor):
     def __init__(self, device_index=0, name="DS18B20"):
-        super().__init__(name)
+        super().__init__(name,uses_i2c=False)
         base_dir = '/sys/bus/w1/devices/'
         device_folders = glob.glob(base_dir + '28-*')
         if device_index >= len(device_folders):
