@@ -68,12 +68,12 @@ class SensorTCPSystem:
 
         # Sensor initialization configuration
         sensors_config = [
-            ("AS5600_X", lambda: AS5600(self.bus, mux=self.mux, channel=6, name="AS5600_X")),
-            ("AS5600_Y", lambda: AS5600(self.bus, mux=self.mux, channel=7, name="AS5600_Y")),
-            ("MPU6050_Body", lambda: MPU6050(self.bus, mux=self.mux, channel=2, name="MPU6050_Body")),
-            ("MPU6050_Gimbal", lambda: MPU6050(self.bus, mux=self.mux, channel=3, name="MPU6050_Gimbal")),
-            ("DS18B20_Motor1", lambda: DS18B20(device_index=0, name="DS18B20_Motor1")),
-            ("DS18B20_Motor2", lambda: DS18B20(device_index=1, name="DS18B20_Motor2")),
+            ("AS5600_1", lambda: AS5600(self.bus, mux=self.mux, channel=6, name="AS5600_1")),
+            ("AS5600_2", lambda: AS5600(self.bus, mux=self.mux, channel=7, name="AS5600_2")),
+            ("MPU6050_1", lambda: MPU6050(self.bus, mux=self.mux, channel=2, name="MPU6050_1")),
+            ("MPU6050_2", lambda: MPU6050(self.bus, mux=self.mux, channel=3, name="MPU6050_2")),
+            ("DS18B20_1", lambda: DS18B20(device_index=0, name="DS18B20_Motor1")),
+            ("DS18B20_2", lambda: DS18B20(device_index=1, name="DS18B20_Motor2")),
         ]
 
         initialized_count = 0
@@ -164,10 +164,10 @@ class SensorTCPSystem:
                         self._send_sensor_data("AS5600", filtered_data)
                         
                         # Update encoder values with proper mapping
-                        if "AS5600_X" in filtered_data:
-                            self.x_encoder = filtered_data["AS5600_X"].get("deg", self.x_encoder)
-                        if "AS5600_Y" in filtered_data:
-                            self.y_encoder = filtered_data["AS5600_Y"].get("deg", self.y_encoder)
+                        if "AS5600_1" in filtered_data:
+                            self.x_encoder = filtered_data["AS5600_1"].get("deg", self.x_encoder)
+                        if "AS5600_2" in filtered_data:
+                            self.y_encoder = filtered_data["AS5600_2"].get("deg", self.y_encoder)
                 
                 # Maintain consistent frequency
                 elapsed = time.time() - start_time
